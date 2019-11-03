@@ -1,9 +1,11 @@
 extern crate cmake;
+extern crate bindgen;
 
 use cmake::Config;
+use bindgen::Builder as BindgenBuilder;
 
 use std::env;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
 fn target_os() -> String {
@@ -31,9 +33,24 @@ fn main() {
         }
     }
 
-    // Deterimine if we're building for MSVC
+    // Generate libui bindings on the fly
+    let bindings = BindgenBuilder::default()
+        .header("wrapper.h")
+        .opaque_type("max_align_t") // For some reason this ends up too large
+        //.rustified_enum(".*")
+        .generate()
+        .expect("Unable to generate bindings");
+
+    let out_path = PathBuf::from(env::var("OUT_DIR").unwrap());
+    bindings
+        .write_to_file(out_path.join("bindings.rs"))
+        .expect("Couldn't write bindings");
+
+    // Deterimine build platform
     let target = env::var("TARGET").unwrap();
     let msvc = target.contains("msvc");
+    let apple = target.contains("apple");
+
     // Build libui if needed. Otherwise, assume it's in lib/
     let mut dst;
     if cfg!(feature = "build") {

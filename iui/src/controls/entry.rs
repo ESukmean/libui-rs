@@ -1,74 +1,75 @@
 //! User input mechanisms: numbers, colors, and text in various forms.
 
 use super::Control;
-use libc::c_void;
 use std::ffi::{CStr, CString};
-use std::i64;
+use std::i32;
 use std::mem;
+use std::os::raw::c_void;
 use ui::UI;
 use ui_sys::{
-    self, uiCheckbox, uiCombobox, uiControl, uiEntry, uiMultilineEntry, uiSlider, uiSpinbox,
+    self, uiCheckbox, uiCombobox, uiControl, uiEntry, uiMultilineEntry, uiRadioButtons, uiSlider,
+    uiSpinbox,
 };
 
 pub trait NumericEntry {
-    fn value(&self, ctx: &UI) -> i64;
-    fn set_value(&mut self, ctx: &UI, value: i64);
-    fn on_changed<F: FnMut(i64)>(&mut self, ctx: &UI, callback: F);
+    fn value(&self, ctx: &UI) -> i32;
+    fn set_value(&mut self, ctx: &UI, value: i32);
+    fn on_changed<'ctx, F: FnMut(i32) + 'ctx>(&mut self, ctx: &'ctx UI, callback: F);
 }
 
 pub trait TextEntry {
     fn value(&self, ctx: &UI) -> String;
     fn set_value(&mut self, ctx: &UI, value: &str);
-    fn on_changed<F: FnMut(String)>(&mut self, ctx: &UI, callback: F);
+    fn on_changed<'ctx, F: FnMut(String) + 'ctx>(&mut self, ctx: &'ctx UI, callback: F);
 }
 
-define_control!{
+define_control! {
     /// Numerical entry control which allows users to set any value in a range by typing or incrementing/decrementing.
-    rust_type: Spinbox, 
+    rust_type: Spinbox,
     sys_type: uiSpinbox
 }
 
-define_control!{ 
+define_control! {
     /// Numerical entry which allows users to select a value by picking a location along a line.
-    rust_type: Slider, 
+    rust_type: Slider,
     sys_type: uiSlider
 }
 
 impl Spinbox {
     // Create a new Spinbox which can produce values from `min` to `max`.
-    pub fn new(_ctx: &UI, min: i64, max: i64) -> Self {
+    pub fn new(_ctx: &UI, min: i32, max: i32) -> Self {
         unsafe { Spinbox::from_raw(ui_sys::uiNewSpinbox(min, max)) }
     }
 
     // Create a new Spinbox with the maximum possible range.
     pub fn new_unlimited(_ctx: &UI) -> Self {
-        Self::new(_ctx, i64::MIN, i64::MAX)
+        Self::new(_ctx, i32::MIN, i32::MAX)
     }
 }
 
 impl Slider {
     // Create a new Spinbox which can produce values from `min` to `max`.
-    pub fn new(_ctx: &UI, min: i64, max: i64) -> Self {
+    pub fn new(_ctx: &UI, min: i32, max: i32) -> Self {
         unsafe { Slider::from_raw(ui_sys::uiNewSlider(min, max)) }
     }
 }
 
 impl NumericEntry for Spinbox {
-    fn value(&self, _ctx: &UI) -> i64 {
+    fn value(&self, _ctx: &UI) -> i32 {
         unsafe { ui_sys::uiSpinboxValue(self.uiSpinbox) }
     }
 
-    fn set_value(&mut self, _ctx: &UI, value: i64) {
+    fn set_value(&mut self, _ctx: &UI, value: i32) {
         unsafe { ui_sys::uiSpinboxSetValue(self.uiSpinbox, value) }
     }
 
-    fn on_changed<F: FnMut(i64)>(&mut self, _ctx: &UI, callback: F) {
+    fn on_changed<'ctx, F: FnMut(i32) + 'ctx>(&mut self, _ctx: &'ctx UI, callback: F) {
         unsafe {
-            let mut data: Box<Box<FnMut(i64)>> = Box::new(Box::new(callback));
+            let mut data: Box<Box<FnMut(i32)>> = Box::new(Box::new(callback));
             ui_sys::uiSpinboxOnChanged(
                 self.uiSpinbox,
-                c_callback,
-                &mut *data as *mut Box<FnMut(i64)> as *mut c_void,
+                Some(c_callback),
+                &mut *data as *mut Box<FnMut(i32)> as *mut c_void,
             );
             mem::forget(data);
         }
@@ -76,28 +77,28 @@ impl NumericEntry for Spinbox {
         extern "C" fn c_callback(spinbox: *mut uiSpinbox, data: *mut c_void) {
             unsafe {
                 let val = ui_sys::uiSpinboxValue(spinbox);
-                mem::transmute::<*mut c_void, &mut Box<FnMut(i64)>>(data)(val);
+                mem::transmute::<*mut c_void, &mut Box<FnMut(i32)>>(data)(val);
             }
         }
     }
 }
 
 impl NumericEntry for Slider {
-    fn value(&self, _ctx: &UI) -> i64 {
+    fn value(&self, _ctx: &UI) -> i32 {
         unsafe { ui_sys::uiSliderValue(self.uiSlider) }
     }
 
-    fn set_value(&mut self, _ctx: &UI, value: i64) {
+    fn set_value(&mut self, _ctx: &UI, value: i32) {
         unsafe { ui_sys::uiSliderSetValue(self.uiSlider, value) }
     }
 
-    fn on_changed<F: FnMut(i64)>(&mut self, _ctx: &UI, callback: F) {
+    fn on_changed<'ctx, F: FnMut(i32) + 'ctx>(&mut self, _ctx: &'ctx UI, callback: F) {
         unsafe {
-            let mut data: Box<Box<FnMut(i64)>> = Box::new(Box::new(callback));
+            let mut data: Box<Box<FnMut(i32)>> = Box::new(Box::new(callback));
             ui_sys::uiSliderOnChanged(
                 self.uiSlider,
-                c_callback,
-                &mut *data as *mut Box<FnMut(i64)> as *mut c_void,
+                Some(c_callback),
+                &mut *data as *mut Box<FnMut(i32)> as *mut c_void,
             );
             mem::forget(data);
         }
@@ -105,7 +106,7 @@ impl NumericEntry for Slider {
         extern "C" fn c_callback(slider: *mut uiSlider, data: *mut c_void) {
             unsafe {
                 let val = ui_sys::uiSliderValue(slider);
-                mem::transmute::<*mut c_void, &mut Box<FnMut(i64)>>(data)(val);
+                mem::transmute::<*mut c_void, &mut Box<FnMut(i32)>>(data)(val);
             }
         }
     }
@@ -148,12 +149,12 @@ impl TextEntry for Entry {
         unsafe { ui_sys::uiEntrySetText(self.uiEntry, cstring.as_ptr()) }
     }
 
-    fn on_changed<F: FnMut(String)>(&mut self, _ctx: &UI, callback: F) {
+    fn on_changed<'ctx, F: FnMut(String) + 'ctx>(&mut self, _ctx: &'ctx UI, callback: F) {
         unsafe {
             let mut data: Box<Box<FnMut(String)>> = Box::new(Box::new(callback));
             ui_sys::uiEntryOnChanged(
                 self.uiEntry,
-                c_callback,
+                Some(c_callback),
                 &mut *data as *mut Box<FnMut(String)> as *mut c_void,
             );
             mem::forget(data);
@@ -184,12 +185,12 @@ impl TextEntry for MultilineEntry {
         unsafe { ui_sys::uiMultilineEntrySetText(self.uiMultilineEntry, cstring.as_ptr()) }
     }
 
-    fn on_changed<F: FnMut(String)>(&mut self, _ctx: &UI, callback: F) {
+    fn on_changed<'ctx, F: FnMut(String) + 'ctx>(&mut self, _ctx: &'ctx UI, callback: F) {
         unsafe {
             let mut data: Box<Box<FnMut(String)>> = Box::new(Box::new(callback));
             ui_sys::uiMultilineEntryOnChanged(
                 self.uiMultilineEntry,
-                c_callback,
+                Some(c_callback),
                 &mut *data as *mut Box<FnMut(String)> as *mut c_void,
             );
             mem::forget(data);
@@ -227,17 +228,22 @@ impl Combobox {
         }
     }
 
-    pub fn set_selected(&mut self, _ctx: &UI, value: i64) {
+    /// Returns the index of the currently selected option.
+    pub fn selected(&self, _ctx: &UI) -> i32 {
+        unsafe { ui_sys::uiComboboxSelected(self.uiCombobox) }
+    }
+
+    pub fn set_selected(&mut self, _ctx: &UI, value: i32) {
         unsafe { ui_sys::uiComboboxSetSelected(self.uiCombobox, value) }
     }
 
-    pub fn on_selected<F: FnMut(i64)>(&mut self, _ctx: &UI, callback: F) {
+    pub fn on_selected<F: FnMut(i32)>(&mut self, _ctx: &UI, callback: F) {
         unsafe {
-            let mut data: Box<Box<FnMut(i64)>> = Box::new(Box::new(callback));
+            let mut data: Box<Box<FnMut(i32)>> = Box::new(Box::new(callback));
             ui_sys::uiComboboxOnSelected(
                 self.uiCombobox,
-                c_callback,
-                &mut *data as *mut Box<FnMut(i64)> as *mut c_void,
+                Some(c_callback),
+                &mut *data as *mut Box<FnMut(i32)> as *mut c_void,
             );
             mem::forget(data);
         }
@@ -245,9 +251,7 @@ impl Combobox {
         extern "C" fn c_callback(combobox: *mut uiCombobox, data: *mut c_void) {
             unsafe {
                 let val = ui_sys::uiComboboxSelected(combobox);
-                // let combobox = Combobox::from_ui_control(combobox);
-                mem::transmute::<*mut c_void, &mut Box<FnMut(i64)>>(data)(val);
-                // mem::forget(combobox);
+                mem::transmute::<*mut c_void, &mut Box<FnMut(i32)>>(data)(val);
             }
         }
     }
@@ -279,7 +283,7 @@ impl Checkbox {
             let mut data: Box<Box<FnMut(bool)>> = Box::new(Box::new(callback));
             ui_sys::uiCheckboxOnToggled(
                 self.uiCheckbox,
-                c_callback,
+                Some(c_callback),
                 &mut *data as *mut Box<FnMut(bool)> as *mut c_void,
             );
             mem::forget(data);
@@ -289,6 +293,50 @@ impl Checkbox {
             unsafe {
                 let val = ui_sys::uiCheckboxChecked(checkbox) != 0;
                 mem::transmute::<*mut c_void, &mut Box<FnMut(bool)>>(data)(val);
+            }
+        }
+    }
+}
+
+define_control! {
+    /// A set of toggles; only one can be selected at a time.
+    rust_type: RadioButtons,
+    sys_type: uiRadioButtons
+}
+
+impl RadioButtons {
+    pub fn new(_ctx: &UI) -> Self {
+        unsafe { RadioButtons::from_raw(ui_sys::uiNewRadioButtons()) }
+    }
+
+    pub fn append(&self, _ctx: &UI, name: &str) {
+        let c_string = CString::new(name.as_bytes().to_vec()).unwrap();
+        unsafe { ui_sys::uiRadioButtonsAppend(self.uiRadioButtons, c_string.as_ptr()); }
+    }
+
+    pub fn selected(&self, _ctx: &UI) -> i32 {
+        unsafe { ui_sys::uiRadioButtonsSelected(self.uiRadioButtons) }
+    }
+
+    pub fn set_selected(&mut self, _ctx: &UI, idx: i32) {
+        unsafe { ui_sys::uiRadioButtonsSetSelected(self.uiRadioButtons, idx); }
+    }
+
+    pub fn on_selected<'ctx, F: FnMut(i32) + 'ctx>(&self, _ctx: &'ctx UI, callback: F) {
+        unsafe {
+            let mut data: Box<Box<FnMut(i32)>> = Box::new(Box::new(callback));
+            ui_sys::uiRadioButtonsOnSelected(
+                self.uiRadioButtons,
+                Some(c_callback),
+                &mut *data as *mut Box<FnMut(i32)> as *mut c_void,
+            );
+            mem::forget(data);
+        }
+
+        extern "C" fn c_callback(radio_buttons: *mut uiRadioButtons, data: *mut c_void) {
+            unsafe {
+                let val = ui_sys::uiRadioButtonsSelected(radio_buttons);
+                mem::transmute::<*mut c_void, &mut Box<FnMut(i32)>>(data)(val);
             }
         }
     }

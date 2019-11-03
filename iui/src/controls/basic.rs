@@ -1,5 +1,5 @@
 use super::Control;
-use libc::c_void;
+use std::os::raw::c_void;
 use std::ffi::{CStr, CString};
 use std::mem;
 use ui::UI;
@@ -49,12 +49,12 @@ impl Button {
     }
 
     /// Run the given callback when the button is clicked.
-    pub fn on_clicked<F: FnMut(&mut Button)>(&mut self, _ctx: &UI, callback: F) {
+    pub fn on_clicked<'ctx, F: FnMut(&mut Button) + 'ctx>(&mut self, _ctx: &'ctx UI, callback: F) {
         unsafe {
             let mut data: Box<Box<FnMut(&mut Button)>> = Box::new(Box::new(callback));
             ui_sys::uiButtonOnClicked(
                 self.uiButton,
-                c_callback,
+                Some(c_callback),
                 &mut *data as *mut Box<FnMut(&mut Button)> as *mut c_void,
             );
             mem::forget(data);

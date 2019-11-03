@@ -1,7 +1,7 @@
 //! Menus that appear at the top of windows, and the items that go in them.
 
 use controls::Window;
-use libc::{c_int, c_void};
+use std::os::raw::{c_int, c_void};
 use std::ffi::CString;
 use std::mem;
 use ui_sys::{self, uiMenu, uiMenuItem, uiWindow};
@@ -46,12 +46,12 @@ impl MenuItem {
     }
 
     /// Sets the function to be executed when the item is clicked/selected.
-    pub fn on_clicked<F: FnMut(&MenuItem, &Window)>(&self, _ctx: &UI, callback: F) {
+    pub fn on_clicked<'ctx, F: FnMut(&MenuItem, &Window) + 'ctx>(&self, _ctx: &'ctx UI, callback: F) {
         unsafe {
             let mut data: Box<Box<FnMut(&MenuItem, &Window)>> = Box::new(Box::new(callback));
             ui_sys::uiMenuItemOnClicked(
                 self.ui_menu_item,
-                c_callback,
+                Some(c_callback),
                 &mut *data as *mut Box<FnMut(&MenuItem, &Window)> as *mut c_void,
             );
             mem::forget(data);

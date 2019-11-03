@@ -1,7 +1,7 @@
 //! Functionality related to creating, managing, and destroying GUI windows.
 
 use controls::Control;
-use libc::{c_int, c_void};
+use std::os::raw::{c_int, c_void};
 use std::cell::RefCell;
 use std::ffi::{CStr, CString};
 use std::mem;
@@ -87,7 +87,7 @@ impl Window {
     ///
     /// This is often used on the main window of an application to quit
     /// the application when the window is closed.
-    pub fn on_closing<F: FnMut(&mut Window)>(&mut self, _ctx: &UI, mut callback: F) {
+    pub fn on_closing<'ctx, F: FnMut(&mut Window) + 'ctx>(&mut self, _ctx: &'ctx UI, mut callback: F) {
         unsafe {
             let mut data: Box<Box<FnMut(&mut Window) -> bool>> = Box::new(Box::new(|window| {
                 callback(window);
@@ -95,7 +95,7 @@ impl Window {
             }));
             ui_sys::uiWindowOnClosing(
                 self.uiWindow,
-                c_callback,
+                Some(c_callback),
                 &mut *data as *mut Box<FnMut(&mut Window) -> bool> as *mut c_void,
             );
             mem::forget(data);

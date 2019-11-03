@@ -8,11 +8,19 @@ project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ### Added
 
-No additional API surface.
+- `ProgressBar` control for tracking the completion of a task with automatic value conversions
+- `enable()` and `disable()` methods on all controls
+- `RadioButtons` control for groups of radio buttons
+- `Combobox::selected()` method to retrieve the currently selected index of the combobox
+- Officially move communications to the Matrix room #rust-native-ui:matrix.nora.codes
 
 ### Changed
 
+* `ui-sys` is now built with Bindgen. This means it can track libui more closely.
 * README.md now links to libui, and is more explanatory
+* `LayoutGrid::insert_at` no longer takes `left` and `height` arguments
+* Many APIs which took `u64` or `i64` arguments now take `i32` for wider compatibility
+* The semi-unstable `iui::draw` subsystem is again exported to downstream consumers of the `iui` crate.
 
 ### Deprecated
 
@@ -20,11 +28,12 @@ No deprecations.
 
 ### Removed
 
-Nothing was removed.
+* `Transform` no longer implements `PartialEq` as the existing implementation was broken.
 
 ### Fixed
 
-No fixes.
+* `VerticalBox` and `HorizontalBox` no longer link to the removed `BoxExt` trait.
+* `ui-sys` now builds on modern macOS.
 
 ### Security
 
