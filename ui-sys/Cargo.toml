@@ -46,9 +46,9 @@ build = []
 static = []
 
 [dependencies]
-libc = "0.2"
+libc = "*"
 
 [build-dependencies]
-cmake = "0.1"
-bindgen = "0.31"
+cmake = "*"
+bindgen = "*"
 

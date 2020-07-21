@@ -31,7 +31,7 @@ impl StrokeParams {
                 Thickness: self.thickness,
                 MiterLimit: self.miter_limit,
                 Dashes: self.dashes.as_ptr() as *mut c_double,
-                NumDashes: self.dashes.len(),
+                NumDashes: self.dashes.len() as u64,
                 DashPhase: self.dash_phase,
             },
             phantom: PhantomData,
